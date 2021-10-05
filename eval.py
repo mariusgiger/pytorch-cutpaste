@@ -24,7 +24,7 @@ cached_type = None
 
 def get_train_embeds(model, size, defect_type, transform, device):
     # train data / train kde
-    test_data = MVTecAT("Data", defect_type, size, transform=transform, mode="train")
+    test_data = MVTecAT("data/mvtec_anomaly_detection", defect_type, size, transform=transform, mode="train")
 
     dataloader_train = DataLoader(test_data, batch_size=64,
                             shuffle=False, num_workers=0)
@@ -33,7 +33,7 @@ def get_train_embeds(model, size, defect_type, transform, device):
         for x in dataloader_train:
             embed, logit = model(x.to(device))
 
-            train_embed.append(embed.cpu())
+            train_embed.append(embed.cpu()) 
     train_embed = torch.cat(train_embed)
     return train_embed
 
@@ -49,7 +49,7 @@ def eval_model(modelname, defect_type, device="cpu", save_plots=False, size=256,
         test_transform.transforms.append(transforms.ToTensor())
         test_transform.transforms.append(transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                                             std=[0.229, 0.224, 0.225]))
-        test_data_eval = MVTecAT("Data", defect_type, size, transform = test_transform, mode="test")
+        test_data_eval = MVTecAT("data/mvtec_anomaly_detection", defect_type, size, transform = test_transform, mode="test")
 
     dataloader_test = DataLoader(test_data_eval, batch_size=64,
                                     shuffle=False, num_workers=0)
@@ -112,7 +112,7 @@ def eval_model(modelname, defect_type, device="cpu", save_plots=False, size=256,
             train_transform.transforms.append(CutPaste(transform=after_cutpaste_transform))
             # train_transform.transforms.append(transforms.ToTensor())
 
-            train_data = MVTecAT("Data", defect_type, transform=train_transform, size=size)
+            train_data = MVTecAT("data/mvtec_anomaly_detection", defect_type, transform=train_transform, size=size)
             dataloader_train = DataLoader(train_data, batch_size=32,
                         shuffle=True, num_workers=8, collate_fn=cut_paste_collate_fn,
                         persistent_workers=True)

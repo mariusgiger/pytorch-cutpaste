@@ -59,7 +59,7 @@ def run_training(data_type="screw",
     train_transform.transforms.append(cutpate_type(transform = after_cutpaste_transform))
     # train_transform.transforms.append(transforms.ToTensor())
 
-    train_data = MVTecAT("Data", data_type, transform = train_transform, size=int(size * (1/min_scale)))
+    train_data = MVTecAT("data/mvtec_anomaly_detection", data_type, transform = train_transform, size=int(size * (1/min_scale)))
     dataloader = DataLoader(Repeat(train_data, 3000), batch_size=batch_size, drop_last=True,
                             shuffle=True, num_workers=workers, collate_fn=cut_paste_collate_fn,
                             persistent_workers=True, pin_memory=True, prefetch_factor=5)
