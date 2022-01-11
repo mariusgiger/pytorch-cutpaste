@@ -13,15 +13,15 @@ from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
 
 
-from dataset import MVTecAT, Repeat
+from dataset import SDODataset, Repeat
 from cutpaste import CutPasteNormal, CutPasteScar, CutPaste3Way, CutPasteUnion, cut_paste_collate_fn
 from model import ProjectionNet
 from eval import eval_model
 
 
-def run_training(data_type="screw",
+def run_training(wave_length=171,
                  model_dir="models",
-                 epochs=256,
+                 epochs=5,
                  pretrained=True,
                  test_epochs=10,
                  freeze_resnet=20,
@@ -34,14 +34,10 @@ def run_training(data_type="screw",
                  workers=8,
                  size=256):
     torch.multiprocessing.freeze_support()
-    # TODO: use script params for hyperparameter
-    # Temperature Hyperparameter currently not used
-    temperature = 0.2
 
     weight_decay = 0.00003
     momentum = 0.9
-    # TODO: use f strings also for the date LOL
-    model_name = f"model-{data_type}" + \
+    model_name = f"model-{wave_length}" + \
         '-{date:%Y-%m-%d_%H_%M_%S}'.format(date=datetime.datetime.now())
 
     # augmentation:
@@ -55,16 +51,16 @@ def run_training(data_type="screw",
 
     train_transform = transforms.Compose([])
     #train_transform.transforms.append(transforms.RandomResizedCrop(size, scale=(min_scale,1)))
-    train_transform.transforms.append(transforms.ColorJitter(
-        brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1))
+    # train_transform.transforms.append(transforms.ColorJitter(
+    #     brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1))
     # train_transform.transforms.append(transforms.GaussianBlur(int(size/10), sigma=(0.1,2.0)))
     train_transform.transforms.append(transforms.Resize((size, size)))
     train_transform.transforms.append(
         cutpate_type(transform=after_cutpaste_transform))
     # train_transform.transforms.append(transforms.ToTensor())
 
-    train_data = MVTecAT("data/mvtec_anomaly_detection", data_type,
-                         transform=train_transform, size=int(size * (1/min_scale)))
+    train_data = SDODataset("data/aia_171_2012-2016_256", wave_length,
+                            transform=train_transform, size=int(size * (1/min_scale)))
     dataloader = DataLoader(Repeat(train_data, 3000), batch_size=batch_size, drop_last=True,
                             shuffle=True, num_workers=workers, collate_fn=cut_paste_collate_fn,
                             persistent_workers=True, pin_memory=True, prefetch_factor=5)
@@ -159,22 +155,22 @@ def run_training(data_type="screw",
         writer.add_scalar('epoch', epoch, step)
 
         # run tests
-        if test_epochs > 0 and epoch % test_epochs == 0:
-            # run auc calculation
-            # TODO: create dataset only once.
-            # TODO: train predictor here or in the model class itself. Should not be in the eval part
-            # TODO: we might not want to use the training datat because of droupout etc. but it should give a indecation of the model performance???
-            # batch_embeds = torch.cat(batch_embeds)
-            # print(batch_embeds.shape)
-            model.eval()
-            roc_auc = eval_model(model_name, data_type, device=device,
-                                 save_plots=False,
-                                 size=size,
-                                 show_training_data=False,
-                                 model=model)
-            # train_embed=batch_embeds)
-            model.train()
-            writer.add_scalar('eval_auc', roc_auc, step)
+        # if test_epochs > 0 and epoch % test_epochs == 0:
+        # run auc calculation
+        # TODO: create dataset only once.
+        # TODO: train predictor here or in the model class itself. Should not be in the eval part
+        # TODO: we might not want to use the training datat because of droupout etc. but it should give a indecation of the model performance???
+        # batch_embeds = torch.cat(batch_embeds)
+        # print(batch_embeds.shape)
+        # model.eval()
+        # roc_auc = eval_model(model_name, data_type, device=device,
+        #                     save_plots=False,
+        #                     size=size,
+        #                     show_training_data=False,
+        #                     model=model)
+        # train_embed=batch_embeds)
+        # model.train()
+        #writer.add_scalar('eval_auc', roc_auc, step)
 
     torch.save(model.state_dict(), model_dir / f"{model_name}.tch")
 
@@ -182,8 +178,8 @@ def run_training(data_type="screw",
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Training defect detection as described in the CutPaste Paper.')
-    parser.add_argument('--type', default="all",
-                        help='MVTec defection dataset type to train seperated by , (default: "all": train all defect types)')
+    parser.add_argument('--wave_length', default="171",
+                        help='SDO AIA Wavelength (default 171)')
 
     parser.add_argument('--epochs', default=256, type=int,
                         help='number of epochs to train the model , (default: 256)')
@@ -223,26 +219,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     print(args)
-    all_types = ['bottle',
-                 'cable',
-                 'capsule',
-                 'carpet',
-                 'grid',
-                 'hazelnut',
-                 'leather',
-                 'metal_nut',
-                 'pill',
-                 'screw',
-                 'tile',
-                 'toothbrush',
-                 'transistor',
-                 'wood',
-                 'zipper']
-
-    if args.type == "all":
-        types = all_types
-    else:
-        types = args.type.split(",")
 
     variant_map = {'normal': CutPasteNormal, 'scar': CutPasteScar,
                    '3way': CutPaste3Way, 'union': CutPasteUnion}
@@ -257,18 +233,18 @@ if __name__ == '__main__':
     with open(Path(args.model_dir) / "run_config.txt", "w") as f:
         f.write(str(args))
 
-    for data_type in types:
-        print(f"training {data_type}")
-        run_training(data_type,
-                     model_dir=Path(args.model_dir),
-                     epochs=args.epochs,
-                     pretrained=args.pretrained,
-                     test_epochs=args.test_epochs,
-                     freeze_resnet=args.freeze_resnet,
-                     learninig_rate=args.lr,
-                     optim_name=args.optim,
-                     batch_size=args.batch_size,
-                     head_layer=args.head_layer,
-                     device=device,
-                     cutpate_type=variant,
-                     workers=args.workers)
+    wave_length = 171
+    print(f"training AIA {wave_length}")
+    run_training(wave_length,
+                 model_dir=Path(args.model_dir),
+                 epochs=args.epochs,
+                 pretrained=args.pretrained,
+                 test_epochs=args.test_epochs,
+                 freeze_resnet=args.freeze_resnet,
+                 learninig_rate=args.lr,
+                 optim_name=args.optim,
+                 batch_size=args.batch_size,
+                 head_layer=args.head_layer,
+                 device=device,
+                 cutpate_type=variant,
+                 workers=args.workers)
