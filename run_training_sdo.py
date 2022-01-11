@@ -21,6 +21,7 @@ from eval import eval_model
 
 def run_training(wave_length=171,
                  model_dir="models",
+                 data_dir="data/aia_171_2012-2016_256",
                  epochs=5,
                  pretrained=True,
                  test_epochs=10,
@@ -59,7 +60,7 @@ def run_training(wave_length=171,
         cutpate_type(transform=after_cutpaste_transform))
     # train_transform.transforms.append(transforms.ToTensor())
 
-    train_data = SDODataset("data/aia_171_2012-2016_256", wave_length,
+    train_data = SDODataset(data_dir, wave_length,
                             transform=train_transform, size=int(size * (1/min_scale)))
     dataloader = DataLoader(Repeat(train_data, 3000), batch_size=batch_size, drop_last=True,
                             shuffle=True, num_workers=workers, collate_fn=cut_paste_collate_fn,
@@ -187,6 +188,9 @@ if __name__ == '__main__':
     parser.add_argument('--model_dir', default="models",
                         help='output folder of the models , (default: models)')
 
+    parser.add_argument('--data_dir', default="data/aia_171_2012-2016_256",
+                        help='data directory , (default: data/aia_171_2012-2016_256)')
+
     parser.add_argument('--no-pretrained', dest='pretrained', default=True, action='store_false',
                         help='use pretrained values to initalize ResNet18 , (default: True)')
 
@@ -237,6 +241,7 @@ if __name__ == '__main__':
     print(f"training AIA {wave_length}")
     run_training(wave_length,
                  model_dir=Path(args.model_dir),
+                 data_dir=Path(args.data_dir),
                  epochs=args.epochs,
                  pretrained=args.pretrained,
                  test_epochs=args.test_epochs,
