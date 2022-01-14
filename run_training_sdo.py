@@ -34,7 +34,8 @@ def run_training(wave_length=171,
                  cutpate_type=CutPasteNormal,
                  device="cuda",
                  workers=8,
-                 size=256):
+                 size=256,
+                 log_interval=100):
     wandb.init(project="pytorch-cutpaste", entity="mariusgiger")
     torch.multiprocessing.freeze_support()
 
@@ -138,6 +139,9 @@ def run_training(wave_length=171,
         optimizer.step()
         if scheduler is not None:
             scheduler.step(epoch)
+
+        if batch_idx % log_interval == 0:
+            wandb.log({"loss": loss})
 
         writer.add_scalar('loss', loss.item(), step)
 
