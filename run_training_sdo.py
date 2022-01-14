@@ -4,6 +4,7 @@ from pathlib import Path
 from tqdm import tqdm
 import datetime
 import argparse
+import wandb
 
 import torch
 from torch import optim
@@ -34,6 +35,7 @@ def run_training(wave_length=171,
                  device="cuda",
                  workers=8,
                  size=256):
+    wandb.init(project="pytorch-cutpaste", entity="mariusgiger")
     torch.multiprocessing.freeze_support()
 
     weight_decay = 0.00003
@@ -74,6 +76,7 @@ def run_training(wave_length=171,
     num_classes = 2 if cutpate_type is not CutPaste3Way else 3
     model = ProjectionNet(pretrained=pretrained,
                           head_layers=head_layers, num_classes=num_classes)
+    wandb.watch(model)
     model.to(device)
 
     if freeze_resnet > 0 and pretrained:
