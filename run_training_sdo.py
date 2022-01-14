@@ -140,19 +140,17 @@ def run_training(wave_length=171,
         if scheduler is not None:
             scheduler.step(epoch)
 
-        if batch_idx % log_interval == 0:
-            wandb.log({"loss": loss})
+        wandb.log({"loss": loss})
 
         writer.add_scalar('loss', loss.item(), step)
 
 #         predicted = torch.argmax(ip,axis=0)
         predicted = torch.argmax(logits, axis=1)
-#         print(logits)
-#         print(predicted)
-#         print(y)
         accuracy = torch.true_divide(
             torch.sum(predicted == y), predicted.size(0))
         writer.add_scalar('acc', accuracy, step)
+        wandb.log({"loss": loss, "acc": accuracy,
+                  "epoch": epoch, "step": step})
         if scheduler is not None:
             writer.add_scalar('lr', scheduler.get_last_lr()[0], step)
 
