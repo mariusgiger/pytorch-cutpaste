@@ -2,6 +2,9 @@ from torch.utils.data import Dataset
 from pathlib import Path
 from PIL import Image
 from joblib import Parallel, delayed
+import torchvision.transforms as transforms
+from glob import glob
+from torchvision import datasets
 
 
 class Repeat(Dataset):
@@ -32,6 +35,8 @@ class MVTecAT(Dataset):
         self.defect_name = defect_name
         self.transform = transform
         self.mode = mode
+        if type(size) is not tuple:
+            size = (size, size)
         self.size = size
 
         # find test images
@@ -86,35 +91,31 @@ class SDODataset(Dataset):
         self.mode = mode
         self.size = size
 
-        if self.mode == "train":
-            self.image_names = list(
-                (self.root_dir / "train").glob(f"*__{wave_length}__*.jpeg"))
-            print("loading images")
-            # during training we cache the smaller images for performance reasons (not a good coding style)
-            # self.imgs = [Image.open(file).resize((size,size)).convert("RGB") for file in self.image_names]
-            self.imgs = Parallel(n_jobs=10)(delayed(lambda file: Image.open(file).resize(
-                (size, size)).convert("RGB"))(file) for file in self.image_names)
-            print(f"loaded {len(self.imgs)} images")
+        if self.mode == 'train':
+            self.images = (self.root_dir /
+                           "train/*").glob(f"*__{wave_length}__*.jpeg")
+        elif self.mode == 'test':
+            self.images = datasets.ImageFolder(
+                (self.root_dir /
+                 "test/*").glob(f"*__{wave_length}__*.jpeg"), transform=self.transform)
         else:
-            # test mode
-            self.image_names = list(
-                (self.root_dir / "test").glob(f"*{wave_length}.jpeg"))
+            raise ValueError('Mode unknown')
+
+        print(f"loaded {len(self.images)} images")
 
     def __len__(self):
-        return len(self.image_names)
+        return len(self.images)
 
     def __getitem__(self, idx):
         if self.mode == "train":
-            # img = Image.open(self.image_names[idx])
-            # img = img.convert("RGB")
-            img = self.imgs[idx].copy()
+            image_path = self.images[idx]
+            image = Image.open(image_path).convert('L')
             if self.transform is not None:
-                img = self.transform(img)
-            return img
+                image = self.transform(image)
+            return image
         else:
-            filename = self.image_names[idx]
-            img = Image.open(filename)
-            img = img.resize((self.size, self.size)).convert("RGB")
+            image_path, label = self.images.samples[idx]
+            image = Image.open(image_path).convert('L')
             if self.transform is not None:
-                img = self.transform(img)
-            return img, filename
+                image = self.transform(image)
+            return image, label
