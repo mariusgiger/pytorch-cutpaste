@@ -88,7 +88,7 @@ class SDODataset(Dataset):
 
         if self.mode == "train":
             self.image_names = list(
-                (self.root_dir / "train").glob(f"*{wave_length}.jpeg"))
+                (self.root_dir / "train").glob(f"*__{wave_length}__*.jpeg"))
             print("loading images")
             # during training we cache the smaller images for performance reasons (not a good coding style)
             # self.imgs = [Image.open(file).resize((size,size)).convert("RGB") for file in self.image_names]
